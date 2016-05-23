@@ -1,0 +1,6 @@
+              _____________
+        NC --|          GND|-- GND
+   Up (>>) --|             |-- Left (^^)
+Right (vv) --|             |-- Press
+ Down (<<) --|__________VCC|-- VCC
+
