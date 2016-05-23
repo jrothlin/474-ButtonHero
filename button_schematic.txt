@@ -1,3 +1,4 @@
+5-Way Directional Button Schematic (Normally Closed)
               _____________
         NC --|          GND|-- GND
    Up (>>) --|             |-- Left (^^)
