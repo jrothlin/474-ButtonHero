@@ -9,8 +9,9 @@
  * This program plays a game synonymous to "Guitar Hero: entitled "Button Hero"
  * Symbols scroll across a screen as the user attempt to press the
  * corresponding buttons at the correct time. This program is targeted for
- * the ARM-Cortex processor and uses two kernal module drivers (lcd_driver
- * and button_driver) to interface with the hardware used for this game.
+ * the ARM-Cortex processor aboard the Beablebone Black and uses two kernal
+ * module drivers (lcd_driver and button_driver) to interface with the hardware
+ * used for this game.
  */
 
 #include "ButtonHero.h"
@@ -29,9 +30,8 @@ int main() {
 // Initiates main game loop for "Button Hero"
 void playGame(){
   srand(time(NULL));
-  int highScore = 0;
-  int quit = 0;
-  int inputs[NUM_BUTTONS] = {0, 0, 0, 0, 0};
+  game_state currGame;
+  memset(&currGame, 0, sizeof(game_state));
 
   // Sets up piezobuzzer for sound using designated PWM pin
   pwm = fopen("/sys/devices/bone_capemgr.9/slots", "w");
@@ -45,11 +45,11 @@ void playGame(){
   dirT = fopen("/sys/devices/ocp.3/pwm_test_P9_14.15/period", "w");
 
   // Main game loop
-  while (!quit) {
-    // Splash screen before game start
+  while (!curr_state.quit) {
     char *playScreen = "                Press button    to start!       ";
     write(fd_lcd, playScreen, SCREEN_SIZE * 3);
     pressAnyButton();
+    // usleep necessary here to prevent signal overlap once game begins
     usleep(500000);
 
     // Initializes the playing screen
@@ -60,20 +60,20 @@ void playGame(){
     }
     screen[SCREEN_SIZE] = '\0';
 
-    int noteType = 5;
-    int inputted, index;
+    currGame.misses = -1;
+    session_state curr_session;
     // Current game session loop
-    while (misses < WRONG_GUESSES){
+    while (currGame.misses < WRONG_GUESSES){
       // When software counter resets, update to the next screen frame
       if (counter == 0) {
         // Respond to player's input
-        if (rightInput && screen[0] != ' ') {
+        if (correctInput && screen[0] != ' ') {
           currentScore++;
-        } else if (!rightInput) {
+        } else if (!correctInput) {
           misses++;
         }
 
-        rightInput = 0;
+        correctInput = 0;
         inputted = 0;
         noteType = rand() % 6;
 
@@ -171,15 +171,15 @@ void playGame(){
 
       // The input matches the note and it's the first input we've received
       if (note == screen[0] && index != 5 && !inputted) {
-        rightInput = 1;
+        correctInput = 1;
         inputted = 1;
       // There is an input and it is wrong
       } else if (index != 5 && (note != screen[0] || screen[0] == ' ')) {
-        rightInput = 0;
+        correctInput = 0;
         inputted = 1;
       // No symbol is showing and we received no input
       } else if (screen[0] == ' ' && index == 5 && !inputted) {
-        rightInput = 1;
+        correctInput = 1;
       }
 
       // Increase speed of game as score rises
@@ -251,10 +251,10 @@ void openPath(){
   fd_but = open(NEW_BUT_DIR, O_RDWR);
   if (fd_lcd < -1 || fd_but < -1) {
     if (fd_lcd < -1) {
-      printf("File %s cannot be opened\n", NEW_LCD_DIR);
+      printf("File %s cannot be opened: %s\n", NEW_LCD_DIR, strerror(errno));
       exit(1);
     } else {
-      printf("File %s cannot be opened\n", NEW_BUT_DIR);
+      printf("File %s cannot be opened: %s\n", NEW_BUT_DIR, strerror(errno));
       exit(1);
     }
   }
@@ -314,10 +314,15 @@ void sigHandler(int signo) {
 
 // Prints the instructions for the user to view on the terminal on game start up
 void instructions(){
-  printf("\nHello! Welcome to Button Hero!\n\nINSTRUCTIONS: Playing this game requires one user. Press the corresponding\n");
-  printf("button when it gets to the far left of the single lined screen. Current score\nand the number of misses are displayed ");
-  printf("on the two-lined LCD screen. A miss is\ngiven on a wrong input or when the user misses an input. The user is allowed %d\nmisses", WRONG_GUESSES);
-  printf(" until they lose. The current high score is then displayed to the user\nand the user is prompted to play again.\n");
+  printf("\nHello! Welcome to Button Hero!\n\nINSTRUCTIONS: Playing this ");
+  printf("game requires one user. Press the corresponding\n");
+  printf("button when it gets to the far left of the single lined screen. ");
+  printf("Current score\nand the number of misses are displayed ");
+  printf("on the two-lined LCD screen. A miss is\n");
+  printf("given on a wrong input or when the user misses an input. ");
+  printf("The user is allowed %d\nmisses", WRONG_GUESSES);
+  printf(" until they lose. The current high score is then displayed to ");
+  printf("the user\nand the user is prompted to play again.\n");
 
   printf("\nTypes of Notes:\n");
   printf("1. ^ = up on the joystick\n");

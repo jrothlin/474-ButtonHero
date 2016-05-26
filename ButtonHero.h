@@ -36,6 +36,7 @@
 #define LEFT 2
 #define RIGHT 3
 #define PRESS 4
+#define NONE 5
 #define NUM_BUTTONS 5
 
 // Note frequencies for buzzer
@@ -51,6 +52,22 @@ const int noteE = 1517451;
 // Static variables for file communication
 static int fd_lcd = 0, fd_but = 0;
 static FILE *sys2 = NULL, *dirduty = NULL, *dirT = NULL;
+
+typedef struct game_state_struct {
+  int highScore;
+  int misses;
+  int inputs[NUM_BUTTONS];
+  bool quit;
+} game_state;
+
+typedef struct session_state_struct {
+  int currScore;
+  int counter;
+  int correctInput;
+  int noteType;
+  int inputted;
+  int index;
+} session_state;
 
 // Pauses program until any button input is received
 void pressAnyButton();
