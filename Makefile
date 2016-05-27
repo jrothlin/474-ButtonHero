@@ -9,9 +9,16 @@ obj-m += button_driver.o
 KDIR = /home/WorkStation6/Documents/EE474Lab12/Lab3/bb-kernel/KERNEL
 PWD = $(shell pwd)
 
+all: default ButtonHero
+
 default:
 	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) modules
-buttonHero: buttonHero.c buttonHero.h
-	arm-linux-gnueabihf-gcc -o buttonHero buttonHero.c
-#clean:
-#	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) clean
+
+ButtonHero: ButtonHero.o
+	arm-linux-gnueabihf-gcc -Wall -o ButtonHero ButtonHero.o
+
+ButtonHero.o: ButtonHero.c ButtonHero.h
+	arm-linux-gnueabihf-gcc -Wall -c ButtonHero.c
+
+clean:
+	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) clean

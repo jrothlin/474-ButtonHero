@@ -17,18 +17,10 @@
 #include "ButtonHero.h"
 
 int main() {
-  // Signal handler for termination signal from terminal
-  signal(SIGINT, sigHandler);
+  // Initial setup steps
+  signal(SIGINT, shutDown);
   openPath();
   instructions();
-  playGame();
-  close(fd_lcd);
-  close(fd_but);
-  return 0;
-}
-
-// Initiates main game loop for "Button Hero"
-void playGame(){
   srand(time(NULL));
   game_state currGame;
   memset(&currGame, 0, sizeof(game_state));
@@ -45,7 +37,7 @@ void playGame(){
   dirT = fopen("/sys/devices/ocp.3/pwm_test_P9_14.15/period", "w");
 
   // Main game loop
-  while (!curr_state.quit) {
+  while (!currGame.quit) {
     char *playScreen = "                Press button    to start!       ";
     write(fd_lcd, playScreen, SCREEN_SIZE * 3);
     pressAnyButton();
@@ -53,154 +45,80 @@ void playGame(){
     usleep(500000);
 
     // Initializes the playing screen
-    char screen[SCREEN_SIZE + 1];
+    char symbolScreen[SCREEN_SIZE + 1];
     int i;
     for (i = 0; i < SCREEN_SIZE; i++) {
-      screen[i] = ' ';
+      symbolScreen[i] = ' ';
     }
-    screen[SCREEN_SIZE] = '\0';
+    symbolScreen[SCREEN_SIZE] = '\0';
 
-    currGame.misses = -1;
-    session_state curr_session;
+    // Zero out structs for the next game session
+    session_state currSession;
+    memset(&currSession, 0, sizeof(session_state));
+    currSession.misses = -1;
+
     // Current game session loop
-    while (currGame.misses < WRONG_GUESSES){
+    while (currSession.misses < WRONG_GUESSES){
       // When software counter resets, update to the next screen frame
-      if (counter == 0) {
+      if (currSession.counter == 0) {
         // Respond to player's input
-        if (correctInput && screen[0] != ' ') {
-          currentScore++;
-        } else if (!correctInput) {
-          misses++;
+        if (currSession.correctInput && symbolScreen[0] != ' ') {
+          currSession.currScore++;
+        } else if (!currSession.correctInput) {
+          currSession.misses++;
         }
 
-        correctInput = 0;
-        inputted = 0;
-        noteType = rand() % 6;
+        currSession.inputted = 0;
+        currSession.correctInput = 0;
 
-        // Shift symbols
-        for (i = 0; i < SCREEN_SIZE - 1; i++) {
-          screen[i] = screen[i + 1];
-        } 
-
-        // Add random note to game screen
-        if (noteType == 0) {
-          screen[SCREEN_SIZE - 1] =  '^'; // up arrow 
-        } else if (noteType == 1) {
-          screen[SCREEN_SIZE - 1] =  'v'; // down arrow 
-        } else if (noteType == 2) {
-          screen[SCREEN_SIZE - 1] =  '<'; // left arrow 
-        } else if (noteType == 3) {
-          screen[SCREEN_SIZE - 1] =  '>'; // right arrow 
-        } else if (noteType == 4) {
-          screen[SCREEN_SIZE - 1] =  'o'; // press button
-        } else {
-          screen[SCREEN_SIZE - 1] =  ' '; // space = no input
+        if (nextScreenFrame(&currSession, symbolScreen) == -1) {
+          shutDown(SIGINT);
         }
-
-        // Builds string for current score display
-        char scoreString[17];
-        sprintf(scoreString, "Score: %d", currentScore);
-        for (i = strlen(scoreString); i < SCREEN_SIZE; i++) {
-          scoreString[i] = ' ';
-        }
-        scoreString[SCREEN_SIZE] = '\0';
-
-        // Builds string for current misses display
-        char missMarks[17];
-        strcpy(missMarks, "Misses: ");
-        for (i = SCREEN_SIZE - WRONG_GUESSES; i < (SCREEN_SIZE - WRONG_GUESSES + misses); i++) {
-          missMarks[i] = 'X';
-        }
-        for (i = (SCREEN_SIZE - WRONG_GUESSES + misses); i < SCREEN_SIZE; i++) {
-          missMarks[i] = ' ';
-        }
-        missMarks[SCREEN_SIZE] = '\0';
-
-        // Builds total string that is passed to the LCD driver
-        char total[SCREEN_SIZE * 3];
-        strcpy(total, screen);
-        strcat(total, scoreString);
-        strcat(total, missMarks);
-
-        // Prints onto LCDs
-        write(fd_lcd, total, SCREEN_SIZE * 3);
-
-        // Prints screen, score, and misses to terminal
-        for (i = 0; i < strlen(total); i++) {
-          if (i % 16 == 0) {
-            printf("\n");
-          }
-          printf("%c",total[i]);
-        }
-        printf("\n");			
       }
       // Delay inbetween input update
       usleep(DELAY_TIME);
 
       // Reads the current status of the button inputs
-      read(fd_but, inputs, NUM_BUTTONS * sizeof(int));
-      index = 5;
+      read(fd_but, currGame.inputs, NUM_BUTTONS * sizeof(int));
+      currSession.pressed = 5;
       for (i = 0; i < NUM_BUTTONS; i++) {
-        if (inputs[i] == 1) {
-          index = i;
+        if (currGame.inputs[i] == 1) {
+          currSession.pressed = i;
         }
       }
 
-      // Processes input, plays corresponding sound on buzzer
-      char note;
-      if (counter % 15 == 0) {
-        if (index == 0) {
-          note =  '^'; // up arrow
+      // Play sound on buzzer which corresponds to the input
+      // This is done less often to improve smoothness of gameplay
+      if (currSession.counter % 15 == 0) {
+        if (currSession.pressed == 0) {
           buzzer(noteA);
-        } else if (index == 1) {
-          note =  'v'; // down arrow 
+        } else if (currSession.pressed == 1) {
           buzzer(noteB);
-        } else if (index == 2) {
-          note =  '<'; // left arrow 
+        } else if (currSession.pressed == 2) {
           buzzer(noteC);
-        } else if (index == 3) {
-          note =  '>'; // right arrow 
+        } else if (currSession.pressed == 3) {
           buzzer(noteD);
-        } else if (index == 4) {
-          note = 'o'; // press button
+        } else if (currSession.pressed == 4) {
           buzzer(noteE);
         } else {
-          note =  ' '; // space = no input
           buzzer(0);
         }
-
-      // The input matches the note and it's the first input we've received
-      if (note == screen[0] && index != 5 && !inputted) {
-        correctInput = 1;
-        inputted = 1;
-      // There is an input and it is wrong
-      } else if (index != 5 && (note != screen[0] || screen[0] == ' ')) {
-        correctInput = 0;
-        inputted = 1;
-      // No symbol is showing and we received no input
-      } else if (screen[0] == ' ' && index == 5 && !inputted) {
-        correctInput = 1;
       }
 
-      // Increase speed of game as score rises
-      if (currentScore < 250) {
-        counter = (counter + 1) % (750 - currentScore * 3);
-      } else {
-        counter = (counter + 1) % 2;  // Cap on difficulty increase
-      }
-    }
-    write(fd_lcd, "                                                                 ", SCREEN_SIZE * 3);
-    highScore = printLose(currentScore, highScore);
-    usleep(250000);
-
-    closeBuzzer();
-
-    // Prompts user to choose to play again
+      updateSession(&currSession, symbolScreen[0]);
+    }    
+    printGameOver(currSession.currScore, &(currGame.highScore));
     pressAnyButton();
     usleep(500000);
-    quit = wantToQuit();
+
+    // Prompts user to choose to play again
+    currGame.quit = wantToQuit();
     usleep(500000);
   }
+  closeBuzzer();
+  close(fd_lcd);
+  close(fd_but);
+  return 0;
 }
 
 // Plays short tune to signal a player loss
@@ -261,49 +179,47 @@ void openPath(){
 }
 
 // Prints the game session ending screen
-int printLose(int currentScore, int highScore) {
-  int newHighScore, i, lost;
-  char winScreen[SCREEN_SIZE * 3];
-  if (currentScore > highScore) {
-    lost = 0;
-    newHighScore = currentScore;
-    printf("\nNEW HIGH SCORE!\n");
-    strcpy(winScreen, "NEW HIGH SCORE! ");
+void printGameOver(int currentScore, int *highScore) {
+  bool lost;
+  char overScreen[SCREEN_SIZE * 3];
+  if (currentScore > *highScore) {
+    lost = false;
+    *highScore = currentScore;
+    strcpy(overScreen, "NEW HIGH SCORE! ");
   } else {
-    lost = 1;
-    newHighScore = highScore;
-    printf("\nSORRY, YOU LOST!\n");
-    strcpy(winScreen, "SORRY, YOU LOST!");
+    lost = true;
+    strcpy(overScreen, "SORRY, YOU LOST!");
   }
 
   // Builds string for current score
-  char scoreString[17];
+  char scoreString[SCREEN_SIZE + 1];
   sprintf(scoreString, "Score: %d", currentScore);
+  int i;
   for (i = strlen(scoreString); i < SCREEN_SIZE; i++) {
     scoreString[i] = ' ';
   }
   scoreString[SCREEN_SIZE] = '\0';
-  strcat(winScreen, scoreString);
+  strcat(overScreen, scoreString);
 
   // Builds string for current high score
-  char highString[17];
-  sprintf(highString, "High Score: %d", highScore);
+  char highString[SCREEN_SIZE + 1];
+  sprintf(highString, "High Score: %d", *highScore);
   for (i = strlen(highString); i < SCREEN_SIZE; i++) {
     highString[i] = ' ';
   }
   highString[SCREEN_SIZE] = '\0';
-  strcat(winScreen, highString);
-  write(fd_lcd, winScreen, SCREEN_SIZE * 3);
+  strcat(overScreen, highString);
+
+  write(fd_lcd, overScreen, SCREEN_SIZE * 3);
   if (lost) {
     loseMusic();
   } else {
     winMusic();
   }	
-  return newHighScore;
 }
 
 // Closes all files for exit when termination signal it received
-void sigHandler(int signo) {
+void shutDown(int signo) {
   if (signo == SIGINT) {
     closeBuzzer();
     if (fd_lcd != 0) close(fd_lcd);
@@ -350,20 +266,101 @@ int wantToQuit() {
   char quitScreen[SCREEN_SIZE * 3] = "Play again?      >No   Yes                      ";
   write(fd_lcd, quitScreen, SCREEN_SIZE * 3);
   int input[NUM_BUTTONS] = {0, 0, 0, 0, 0};	
-  int cursorOnNo = 1;
+  bool cursorOnNo = true;
+
+  // Wait until an option is selected by pressing the button
   while (input[4] != 1) {
     read(fd_but, input, (NUM_BUTTONS * sizeof(int)));
+
+    // If the cursor is moved to the right while it points to "No"
     if ((cursorOnNo == 1) && (input[RIGHT] == 1)) {
-      cursorOnNo = 0;
+      cursorOnNo = false;
       quitScreen[17] = ' ';
       quitScreen[22] = '>';
       write(fd_lcd, quitScreen, SCREEN_SIZE * 3);
+
+    // If the cursor is moved to the left while it points to "Yes"
     } else if ((cursorOnNo == 0) && (input[LEFT] == 1)) {
-      cursorOnNo = 1;
+      cursorOnNo = true;
       quitScreen[17] = '>';
       quitScreen[22] = ' ';
       write(fd_lcd, quitScreen, SCREEN_SIZE * 3);
     }
   }
   return cursorOnNo;
+}
+
+// Prints the next screen frame to the LCD screens. The symbolScreen will be
+// modified by shift all of it's character to the left by one space (except for
+// a terminating null character at the end) and filling
+// in the empty space with a random character from the symbols array.
+// Return -1 on error, 0 on success.
+// **WARNING** this function expects the length of symbolScreen to be
+// SCREEN_SIZE + 1. Providing a string with any other length will produce 
+// undefined behavior.
+int nextScreenFrame(session_state *currSession, char *symbolScreen) {
+  // Shift symbols
+  int i;
+  for (i = 0; i < SCREEN_SIZE - 1; i++) {
+    symbolScreen[i] = symbolScreen[i + 1];
+  } 
+
+  // Add random note to game screen
+  symbolScreen[SCREEN_SIZE - 1] = symbols[rand() % 6];
+  symbolScreen[SCREEN_SIZE] = '\0';
+
+  // Builds string for current score display
+  char scoreString[SCREEN_SIZE + 1];
+  sprintf(scoreString, "Score: %d", currSession->currScore);
+  for (i = strlen(scoreString); i < SCREEN_SIZE; i++) {
+    scoreString[i] = ' ';
+  }
+  scoreString[SCREEN_SIZE] = '\0';
+
+  // Builds string for current misses display
+  char missMarks[SCREEN_SIZE + 1];
+  strcpy(missMarks, "Misses: ");
+  for (i = SCREEN_SIZE - WRONG_GUESSES; i < (SCREEN_SIZE - WRONG_GUESSES + currSession->misses); i++) {
+    missMarks[i] = 'X';
+  }
+  for (i = (SCREEN_SIZE - WRONG_GUESSES + currSession->misses); i < SCREEN_SIZE; i++) {
+    missMarks[i] = ' ';
+  }
+  missMarks[SCREEN_SIZE] = '\0';
+
+  // Builds total string that is passed to the LCD driver
+  char total[SCREEN_SIZE * 3];
+  strcpy(total, symbolScreen);
+  strcat(total, scoreString);
+  strcat(total, missMarks);
+
+  write(fd_lcd, total, SCREEN_SIZE * 3);
+  return 0;
+}
+
+// Updates the currSession struct based on the current state of the game. The
+// direction argument is the character which the played must currently press
+// to get the point.
+void updateSession(session_state *currSession, char direction) {
+  // The input matches the note and it's the first input we've received
+  if (symbols[currSession->pressed] == direction && currSession->pressed != 5 && !currSession->inputted) {
+    currSession->correctInput = 1;
+    currSession->inputted = 1;
+
+  // There is an input and it is wrong
+  } else if (currSession->pressed != 5 && (symbols[currSession->pressed] != direction || direction == ' ')) {
+    currSession->correctInput = 0;
+    currSession->inputted = 1;
+
+  // No symbol is showing and we received no input
+  } else if (direction == ' ' && currSession->pressed == 5 && !currSession->inputted) {
+    currSession->correctInput = 1;
+  }
+
+  // Increase speed of the game as score rises
+  if (currSession->currScore < 250) {
+    currSession->counter = (currSession->counter + 1) % (750 - currSession->currScore * 3);
+  } else {
+    currSession->counter = (currSession->counter + 1) % 2;  // Cap on difficulty increase
+  }
 }

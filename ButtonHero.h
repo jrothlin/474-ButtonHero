@@ -23,6 +23,7 @@
 #include <time.h>
 #include <math.h>
 #include <signal.h>
+#include <stdbool.h>
 
 #define SCREEN_SIZE 16 // total length of a line on the LCD screen
 #define WRONG_GUESSES 8 // has to be less than or equal to 8
@@ -49,24 +50,31 @@ const int noteC = 1912046;
 const int noteD = 1702620;
 const int noteE = 1517451;
 
+// Set of game play symboles
+const char symbols[NUM_BUTTONS + 1] = {'^', 'v', '<', '>', 'o', ' '};
+
 // Static variables for file communication
 static int fd_lcd = 0, fd_but = 0;
-static FILE *sys2 = NULL, *dirduty = NULL, *dirT = NULL;
+static FILE *pwm = NULL, *dirduty = NULL, *dirT = NULL;
 
+// State of the game, there is only one game during the life of the program
 typedef struct game_state_struct {
   int highScore;
-  int misses;
   int inputs[NUM_BUTTONS];
   bool quit;
 } game_state;
 
+// Contains the state of the session, a session is the point from when the
+// symbols begin to scroll across the screen until the moment the user obtains
+// too many misses. There can be several session in a single game depending
+// on how many times the user chooses to play through a session
 typedef struct session_state_struct {
   int currScore;
   int counter;
-  int correctInput;
-  int noteType;
+  int pressed;
+  int misses;
   int inputted;
-  int index;
+  int correctInput;
 } session_state;
 
 // Pauses program until any button input is received
@@ -77,12 +85,13 @@ int wantToQuit();
 
 // Interupt handler, makes all necessary closing steps to terminate program
 // when the SIGINT signal is received
-void sigHandler(int signo);
+void shutDown(int signo);
 
 // Takes in two integers which represent the score the player received in the
 // current game and the previous high score. This function will set the screen
-// to the correct value and return the new high score.
-int printLose(int currentScore, int highScore);
+// to the correct display and if currentScore is greater than highScore,
+// highScore will be modified and set to be equal to currentScore.
+void printGameOver(int currentScore, int *highScore);
 
 // Calls open funtion of the lcd driver and button driver setting the static
 // variables fd_lcd and fd_but to their correct values
@@ -91,11 +100,8 @@ void openPath(void);
 // Prints the instructions of the game to terminal
 void instructions(void);
 
-// Initiates the game
-void playGame(void);
-
 // Plays the given note on the buzzer
-void buzzer(int note, int count);
+void buzzer(int note);
 
 // Plays the sound sequence for a lose
 void loseMusic(void);
@@ -105,5 +111,20 @@ void winMusic(void);
 
 // Closes the files associated with the buzzer
 void closeBuzzer(void);
+
+// Prints the next screen frame to the LCD screens. The symbolScreen will be
+// modified by shift all of it's character to the left by one space (except for
+// a terminating null character at the end) and filling
+// in the empty space with a random character from the symbols array.
+// Return -1 on error, 0 on success.
+// **WARNING** this function expects the length of symbolScreen to be
+// SCREEN_SIZE + 1. Providing a string with any other length will produce 
+// undefined behavior.
+int nextScreenFrame(session_state *currSession, char *symbolScreen);
+
+// Updates the currSession struct based on the current state of the game. The
+// direction argument is the character which the played must currently press
+// to get the point.
+void updateSession(session_state *currSession, char direction);
 
 #endif  // _BUTTONHERO_H_
