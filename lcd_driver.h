@@ -10,7 +10,7 @@
  */
 #ifndef LCD_DRIVER_H_
 #define LCD_DRIVER_H_
- 
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
@@ -44,8 +44,8 @@ static int EArr[2] = {E_GAME, E_SCORE};
 // contains data about the device.
 // data : buffer for character data stored currently on the screen
 struct device {
-	char data[CHAR_PER_LINE * NUM_LINES];
-	struct semaphore sem;
+  char data[CHAR_PER_LINE * NUM_LINES];
+  struct semaphore sem;
 } virtual_device;
 
 // stores info about this char device.
@@ -62,52 +62,53 @@ static int __init driver_entry(void);
 static void __exit driver_exit(void);
 
 // Locks device, sets all GPIOs, and goes through initialization sequence for
-// the LCD screens. Return negative on failure, 0 otherwise 
+// the LCD screens. Return negative on failure, 0 otherwise
 static int  device_open(struct inode*, struct file*);
 
-// Closes devices, clears displays, frees the GPIO pins, and returns access to semaphore.
+// Closes devices, clears displays, frees the GPIO pins, and returns access
+// to semaphore.
 static int device_close(struct inode*, struct file *);
 
 // This function will take the contents of bufSource and print them to the
 // LCD screens. The first 16 bytes are printed to the left screen,
 // the next 16 bytes are printed to the top row of the right screen,
 // and the last 16 bytes are printed to the bottom row of the right screen.
-// Any other bytes will be ignored. providing a bufCount of 0 will clear screen 
+// Any other bytes will be ignored. providing a bufCount of 0 will clear screen
 static ssize_t device_write(struct file*, const char*, size_t, loff_t*);
 
 // Loads and sends data from the shift register
-void setBus(unsigned char);
+void setBus(unsigned char num);
 
 // Loads data through the shift register and sends the command to the LCD
-void command(unsigned char, int);
+void command(unsigned char data, int screenSel);
 
-void setBus(unsigned char);
+void setBus(unsigned char num);
 
 // Flips the enable switch on the LCD to execute the loaded instruction
 // of the screen set by screenSel
-void lcdSend(int);
+void lcdSend(int screenSel);
 
 // Initializes the LCD with the proper series of commands
-void initialize(int);
+void initialize(int screenSel);
 
 // Turns the LCD selected by screenSel off
-void displayOff(int);
+void displayOff(int screenSel);
 
 // Clears the LCD selected by screenSel
-void clearDisplay(int);
+void clearDisplay(int screenSel);
 
 // Sets DB7 to DB0 to the given 8 bits of the screen set by screenSel
-void writeChar(unsigned char, int);
+void writeChar(unsigned char character, int screenSel);
 
 // Sets the R/W pointer to the address specified of the screenSel screen
-void setAddress(unsigned char, int);
+void setAddress(unsigned char address, int screenSel);
 
 // operations usable by this file
 static struct file_operations fops = {
-   .owner = THIS_MODULE,
-   .write = device_write,
-   .open = device_open,
-   .release = device_close
+  .owner = THIS_MODULE,
+  .write = device_write,
+  .open = device_open,
+  .release = device_close
 };
 
 #endif  // LCD_DRIVER_H_

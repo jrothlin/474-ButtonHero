@@ -24,7 +24,8 @@ static int __init driver_entry(void) {
     return ret;
   }
   printk(KERN_INFO "button_driver: major number is %d\n", MAJOR(dev_num));
-  printk(KERN_INFO "Use \"mknod /dev/%s c %d 0\" for device file\n", DEVICE_NAME, MAJOR(dev_num));
+  printk(KERN_INFO "Use \"mknod /dev/%s c %d 0\" for device file\n",
+         DEVICE_NAME, MAJOR(dev_num));
 
   // Created cdev structure
   mcdev = cdev_alloc();
@@ -37,7 +38,7 @@ static int __init driver_entry(void) {
     printk(KERN_ALERT "button_driver: unable to add cdev to kernel\n");
     return ret;
   }
-	
+
   // Initialize SEMAPHORE
   sema_init(&virtual_device.sem, 1);
   msleep(10);
@@ -49,10 +50,9 @@ static int __init driver_entry(void) {
 static void __exit driver_exit(void) {
   cdev_del(mcdev);
   unregister_chrdev_region(dev_num, 1);
-
 }
 
-// Requests and sets up necessary GPIOs, returns negative on error, 0 otherwise 
+// Requests and sets up necessary GPIOs, returns negative on error, 0 otherwise
 int device_open(struct inode *inode, struct file* filp) {
   if (down_interruptible(&virtual_device.sem) != 0) {
     printk(KERN_ALERT "button_driver: could not lock device during open\n");
@@ -96,7 +96,10 @@ int device_close(struct inode* inode, struct  file *filp) {
 // Called when user wants to get state of the button input
 // Warning: calling read from this module without specifying the correct
 // number of bytes will result in no data being transferred
-ssize_t device_read(struct file* filp, char* bufStoreData, size_t bufCount, loff_t* curOffset) {
+ssize_t device_read(struct file* filp,
+                    char* bufStoreData,
+                    size_t bufCount,
+                    loff_t* curOffset) {
   virtual_device.status[0] = !gpio_get_value(UP);
   virtual_device.status[1] = !gpio_get_value(DOWN);
   virtual_device.status[2] = !gpio_get_value(LEFT);

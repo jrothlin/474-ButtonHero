@@ -25,11 +25,11 @@
 #include <signal.h>
 #include <stdbool.h>
 
-#define SCREEN_SIZE 16 // total length of a line on the LCD screen
-#define WRONG_GUESSES 8 // has to be less than or equal to 8
-#define DELAY_TIME 1000 // time between each input update in microseconds
-#define NEW_LCD_DIR "/dev/lcd_driver" // lcd driver directory
-#define NEW_BUT_DIR "/dev/button_driver" // button driver directory
+#define SCREEN_SIZE 16  // total length of a line on the LCD screen
+#define WRONG_GUESSES 8  // has to be less than or equal to 8
+#define DELAY_TIME 1000  // time between each input update in microseconds
+#define NEW_LCD_DIR "/dev/lcd_driver"  // lcd driver directory
+#define NEW_BUT_DIR "/dev/button_driver"  // button driver directory
 
 // Constants associated with button controls
 #define UP 0
@@ -115,9 +115,9 @@ void winMusic(void);
 // in the empty space with a random character from the symbols array.
 // Return -1 on error, 0 on success.
 // **WARNING** this function expects the length of symbolScreen to be
-// SCREEN_SIZE + 1. Providing a string with any other length will produce 
+// SCREEN_SIZE + 1. Providing a string with any other length will produce
 // undefined behavior.
-int nextScreenFrame(session_state *currSession, char *symbolScreen);
+int nextScreenFrame(const session_state *currSession, char *symbolScreen);
 
 // Updates the currSession struct based on the current state of the game. The
 // direction argument is the character which the played must currently press

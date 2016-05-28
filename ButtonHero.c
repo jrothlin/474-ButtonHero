@@ -56,7 +56,7 @@ int main() {
     currSession.misses = -1;
 
     // Current game session loop
-    while (currSession.misses < WRONG_GUESSES){
+    while (currSession.misses < WRONG_GUESSES) {
       // When software counter resets, update to the next screen frame
       if (currSession.counter == 0) {
         // Respond to player's input
@@ -105,7 +105,7 @@ int main() {
       }
 
       updateSession(&currSession, symbolScreen[0]);
-    }    
+    }
     printGameOver(currSession.currScore, &(currGame.highScore));
     pressAnyButton();
     usleep(500000);
@@ -153,7 +153,7 @@ void buzzer(int note) {
 }
 
 // Opens files used to interface with kernal drivers for LCDs and 5-way button
-void openPath(){
+void openPath() {
   fd_lcd = open(NEW_LCD_DIR, O_RDWR);
   fd_but = open(NEW_BUT_DIR, O_RDWR);
   if (fd_lcd < -1 || fd_but < -1) {
@@ -204,7 +204,7 @@ void printGameOver(int currentScore, int *highScore) {
     loseMusic();
   } else {
     winMusic();
-  }	
+  }
 }
 
 // Closes all files for exit when termination signal it received
@@ -218,7 +218,7 @@ void shutDown() {
 }
 
 // Prints the instructions for the user to view on the terminal on game start up
-void instructions(){
+void instructions() {
   printf("\nHello! Welcome to Button Hero!\n\nINSTRUCTIONS: Playing this ");
   printf("game requires one user. Press the corresponding\n");
   printf("button when it gets to the far left of the single lined screen. ");
@@ -235,7 +235,7 @@ void instructions(){
   printf("3. < = left on the joystick\n");
   printf("4. > = right on the joystick\n");
   printf("5. o = press the joystick\n");
-  printf("6.   = do nothing\n");	
+  printf("6.   = do nothing\n");
 }
 
 // Waits for the user to input anything on the button
@@ -252,9 +252,10 @@ void pressAnyButton() {
 
 // Asks user if they would like to play again, returns 1 for yes and 0 for no
 int wantToQuit() {
-  char quitScreen[SCREEN_SIZE * 3] = "Play again?      >No   Yes                      ";
+  char quitScreen[SCREEN_SIZE * 3] =
+    "Play again?      >No   Yes                      ";
   write(fd_lcd, quitScreen, SCREEN_SIZE * 3);
-  int input[NUM_BUTTONS] = {0, 0, 0, 0, 0};	
+  int input[NUM_BUTTONS] = {0, 0, 0, 0, 0};
   bool cursorOnNo = true;
 
   // Wait until an option is selected by pressing the button
@@ -285,14 +286,14 @@ int wantToQuit() {
 // in the empty space with a random character from the symbols array.
 // Return -1 on error, 0 on success.
 // **WARNING** this function expects the length of symbolScreen to be
-// SCREEN_SIZE + 1. Providing a string with any other length will produce 
+// SCREEN_SIZE + 1. Providing a string with any other length will produce
 // undefined behavior.
-int nextScreenFrame(session_state *currSession, char *symbolScreen) {
+int nextScreenFrame(const session_state *currSession, char *symbolScreen) {
   // Shift symbols
   int i;
   for (i = 0; i < SCREEN_SIZE - 1; i++) {
     symbolScreen[i] = symbolScreen[i + 1];
-  } 
+  }
 
   // Add random note to game screen
   symbolScreen[SCREEN_SIZE - 1] = symbols[rand() % 6];
@@ -309,10 +310,14 @@ int nextScreenFrame(session_state *currSession, char *symbolScreen) {
   // Builds string for current misses display
   char missMarks[SCREEN_SIZE + 1];
   strcpy(missMarks, "Misses: ");
-  for (i = SCREEN_SIZE - WRONG_GUESSES; i < (SCREEN_SIZE - WRONG_GUESSES + currSession->misses); i++) {
+  for (i = SCREEN_SIZE - WRONG_GUESSES;
+       i < (SCREEN_SIZE - WRONG_GUESSES + currSession->misses);
+       i++) {
     missMarks[i] = 'X';
   }
-  for (i = (SCREEN_SIZE - WRONG_GUESSES + currSession->misses); i < SCREEN_SIZE; i++) {
+  for (i = (SCREEN_SIZE - WRONG_GUESSES + currSession->misses);
+       i < SCREEN_SIZE;
+       i++) {
     missMarks[i] = ' ';
   }
   missMarks[SCREEN_SIZE] = '\0';
@@ -332,24 +337,31 @@ int nextScreenFrame(session_state *currSession, char *symbolScreen) {
 // to get the point.
 void updateSession(session_state *currSession, char direction) {
   // The input matches the note and it's the first input we've received
-  if (symbols[currSession->pressed] == direction && currSession->pressed != 5 && !currSession->inputted) {
+  if (symbols[currSession->pressed] == direction &&
+      currSession->pressed != 5 &&
+      !currSession->inputted) {
     currSession->correctInput = 1;
     currSession->inputted = 1;
 
   // There is an input and it is wrong
-  } else if (currSession->pressed != 5 && (symbols[currSession->pressed] != direction || direction == ' ')) {
+  } else if (currSession->pressed != 5 &&
+             (symbols[currSession->pressed] != direction ||
+              direction == ' ')) {
     currSession->correctInput = 0;
     currSession->inputted = 1;
 
   // No symbol is showing and we received no input
-  } else if (direction == ' ' && currSession->pressed == 5 && !currSession->inputted) {
+  } else if (direction == ' ' &&
+             currSession->pressed == 5 &&
+             !currSession->inputted) {
     currSession->correctInput = 1;
   }
 
   // Increase speed of the game as score rises
   if (currSession->currScore < 250) {
-    currSession->counter = (currSession->counter + 1) % (750 - currSession->currScore * 3);
+    currSession->counter =
+    (currSession->counter + 1) % (750 - currSession->currScore * 3);
   } else {
-    currSession->counter = (currSession->counter + 1) % 2;  // Cap on difficulty increase
+    currSession->counter = (currSession->counter + 1) % 2;
   }
 }

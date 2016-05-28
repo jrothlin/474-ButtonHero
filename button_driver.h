@@ -11,7 +11,7 @@
 
 #ifndef _BUTTON_DRIVER_H_
 #define _BUTTON_DRIVER_H_
- 
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/fs.h>
@@ -35,8 +35,8 @@
 
 // Contains data about the device.
 struct device {
-	int status[NUM_BUTTONS];
-	struct semaphore sem;
+  int status[NUM_BUTTONS];
+  struct semaphore sem;
 } virtual_device;
 
 // Stores info about this char device.
@@ -52,7 +52,7 @@ static int __init driver_entry(void);
 // Run when module is uninstalled, unregisters the device.
 static void __exit driver_exit(void);
 
-// Requests and sets up necessary GPIOs, returns negative on error, 0 otherwise 
+// Requests and sets up necessary GPIOs, returns negative on error, 0 otherwise
 static int  device_open(struct inode*, struct file*);
 
 // Closes device, frees the GPIO pins, and returns access to semaphore.
@@ -65,10 +65,10 @@ static ssize_t device_read(struct file*, char*, size_t, loff_t*);
 
 // Operations usable by this file.
 static struct file_operations fops = {
-   .owner = THIS_MODULE,
-   .read = device_read,
-   .open = device_open,
-   .release = device_close
+  .owner = THIS_MODULE,
+  .read = device_read,
+  .open = device_open,
+  .release = device_close
 };
 
 #endif  // _BUTTON_DRIVER_H_

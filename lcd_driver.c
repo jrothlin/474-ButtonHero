@@ -25,7 +25,8 @@ static int __init driver_entry(void) {
     return ret;
   }
   printk(KERN_INFO "lcd_driver: major number is %d\n", MAJOR(dev_num));
-  printk(KERN_INFO "Use \"mknod /dev/%s c %d 0\" for device file\n", DEVICE_NAME, MAJOR(dev_num));
+  printk(KERN_INFO "Use \"mknod /dev/%s c %d 0\" for device file\n",
+         DEVICE_NAME, MAJOR(dev_num));
 
   // Create cdev structure
   mcdev = cdev_alloc();
@@ -50,11 +51,10 @@ static int __init driver_entry(void) {
 static void __exit driver_exit(void) {
   cdev_del(mcdev);
   unregister_chrdev_region(dev_num, 1);
-
 }
 
 // Locks device, sets all GPIOs, and goes through initialization sequence for
-// the LCD screens. Return negative on failure, 0 otherwise 
+// the LCD screens. Return negative on failure, 0 otherwise
 int device_open(struct inode *inode, struct file* filp) {
   if (down_interruptible(&virtual_device.sem) != 0) {
     printk(KERN_ALERT "lcd_driver: could not lock device during open\n");
@@ -75,7 +75,7 @@ int device_open(struct inode *inode, struct file* filp) {
     printk(KERN_ALERT "lcd_driver: could not access GPIOs during open\n");
     return -1;
   }
-	
+
   // Set all pins for output
   gpio_direction_output(DATA_, 0);
   gpio_direction_output(LATCH_, 0);
@@ -84,14 +84,15 @@ int device_open(struct inode *inode, struct file* filp) {
   gpio_direction_output(RW_, 0);
   gpio_direction_output(E_GAME, 0);
   gpio_direction_output(E_SCORE, 0);
-	
+
   // Initializes both LCDs
   initialize(GAME_SCREEN);
   initialize(SCORE_SCREEN);
   return 0;
 }
 
-// Closes devices, clears displays, frees the GPIO pins, and returns access to semaphore.
+// Closes devices, clears displays, frees the GPIO pins, and returns access
+// to semaphore.
 int device_close(struct inode* inode, struct  file *filp) {
   up(&virtual_device.sem);
   clearDisplay(GAME_SCREEN);
@@ -112,8 +113,11 @@ int device_close(struct inode* inode, struct  file *filp) {
 // LCD screens. The first 16 bytes are printed to the left screen,
 // the next 16 bytes are printed to the top row of the right screen,
 // and the last 16 bytes are printed to the bottom row of the right screen.
-// Any other bytes will be ignored. providing a bufCount of 0 will clear screen 
-ssize_t device_write(struct file* filp, const char* bufSource, size_t bufCount, loff_t* curOffset) {
+// Any other bytes will be ignored. providing a bufCount of 0 will clear screen
+ssize_t device_write(struct file* filp,
+                     const char* bufSource,
+                     size_t bufCount,
+                     loff_t* curOffset) {
   int firstLine, secondLine, thirdLine;
   int i;
 
@@ -178,7 +182,7 @@ void initialize(int screenSel) {
   // Function Set #2
   lcdSend(screenSel);
   msleep(1);
-	
+
   // Function Set #3
   lcdSend(screenSel);
   msleep(1);
@@ -199,7 +203,7 @@ void initialize(int screenSel) {
   command((unsigned char) 0x01, screenSel);
   msleep(16);
 
-  // Increment mode	
+  // Increment mode
   command((unsigned char) 0x06, screenSel);
   udelay(50);
 
@@ -225,13 +229,13 @@ void setBus(unsigned char num) {
   int binary[8];
 
   // Building the binary version of num
-  if (j = 0; j < 8; j++) {
+  for (j = 0; j < 8; j++) {
     binary[j] = num % 2;
     num = num >> 1;
   }
 
   // Inserting binary value into shift register
-  if (i = 7; i >= 0; i--) { 
+  for (i = 7; i >= 0; i--) {
     gpio_set_value(DATA_, binary[i]);
     gpio_set_value(CLOCK_, 1);
     udelay(10);
@@ -242,14 +246,13 @@ void setBus(unsigned char num) {
   gpio_set_value(LATCH_, 1);
   udelay(50);
   gpio_set_value(LATCH_, 0);
-
 }
 
 // Clears the LCD selected by screenSel
-void clearDisplay(int screenSel){
+void clearDisplay(int screenSel) {
   gpio_set_value(RS_, 0);
   gpio_set_value(RW_, 0);
-  command ((unsigned char) 0x01, screenSel); // Clear Display
+  command((unsigned char) 0x01, screenSel);  // Clear Display
   msleep(16);
 }
 
@@ -257,7 +260,7 @@ void clearDisplay(int screenSel){
 void displayOff(int screenSel) {
   gpio_set_value(RS_, 0);
   gpio_set_value(RW_, 0);
-  command((unsigned char) 0x08, screenSel); // Display OFF
+  command((unsigned char) 0x08, screenSel);  // Display OFF
   udelay(50);
 }
 
@@ -288,7 +291,7 @@ void lcdSend(int screenSel) {
   gpio_set_value(EArr[screenSel], 0);
 }
 
-MODULE_LICENSE("GPL"); // module license: required to use some functionalities.
-module_init(driver_entry); // declares which function runs on init.
-module_exit(driver_exit);  // declares which function runs on exit.
+MODULE_LICENSE("GPL");  // module license: required to use some functionalities.
+module_init(driver_entry);  // declares which function runs on init.
+module_exit(driver_exit);   // declares which function runs on exit.
 
