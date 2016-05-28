@@ -2,11 +2,11 @@
  * lcd_driver.c
  *
  * Brad Marquez
- * Aigerim Shintemirova
  * Joseph Rothlin
+ * Aigerim Shintemirova
  * 
  * This files is a Linux kernal driver for a circuit consisting of two LCD
- * screens and a serial in parallel out shift register.
+ * screens and a serial in/parallel out shift register.
  * Target device is Beaglebone Black microcontroller.
  */
 
@@ -18,17 +18,16 @@
 // necessary information for creating device file. Returns zero on success,
 // non-zero on failure
 static int __init driver_entry(void) {
-  // REGISTERIONG OUR DEVICE WITH THE SYSTEM
-  // ALLOCATE DYNAMICALLY TO ASSIGN OUR DEVICE
+  // Registering the device with the system
   int ret = alloc_chrdev_region(&dev_num, 0, 1, DEVICE_NAME);
   if (ret < 0) {
     printk(KERN_ALERT "lcd_driver: Failed to allocate a major number\n");
     return ret;
   }
   printk(KERN_INFO "lcd_driver: major number is %d\n", MAJOR(dev_num));
-  printk(KERN_INFO "Use mknod /dev/%s c %d 0 for device file\n", DEVICE_NAME, MAJOR(dev_num));
+  printk(KERN_INFO "Use \"mknod /dev/%s c %d 0\" for device file\n", DEVICE_NAME, MAJOR(dev_num));
 
-  // CREATE CDEV STRUCTURE, INITIALIZING CDEV
+  // Create cdev structure
   mcdev = cdev_alloc();
   mcdev->ops = &fops;
   mcdev->owner = THIS_MODULE;
@@ -40,7 +39,7 @@ static int __init driver_entry(void) {
     return ret;
   }
 
-  // Initialize SEMAPHORE
+  // Initialize semaphore
   sema_init(&virtual_device.sem, 1);
   msleep(10);
 
@@ -55,7 +54,7 @@ static void __exit driver_exit(void) {
 }
 
 // Locks device, sets all GPIOs, and goes through initialization sequence for
-// the LCD screens 
+// the LCD screens. Return negative on failure, 0 otherwise 
 int device_open(struct inode *inode, struct file* filp) {
   if (down_interruptible(&virtual_device.sem) != 0) {
     printk(KERN_ALERT "lcd_driver: could not lock device during open\n");
@@ -63,13 +62,19 @@ int device_open(struct inode *inode, struct file* filp) {
   }
 
   // Request access to all the needed GPIO pins
-  gpio_request(DATA_, "Data");
-  gpio_request(LATCH_, "Latch");
-  gpio_request(CLOCK_, "Clock");
-  gpio_request(RS_, "RS1");
-  gpio_request(RW_, "R/W1");
-  gpio_request(E_GAME, "E1");
-  gpio_request(E_SCORE, "E2");
+  int res = 0;
+  res += gpio_request(DATA_, "Data");
+  res += gpio_request(LATCH_, "Latch");
+  res += gpio_request(CLOCK_, "Clock");
+  res += gpio_request(RS_, "RS1");
+  res += gpio_request(RW_, "R/W1");
+  res += gpio_request(E_GAME, "E1");
+  res += gpio_request(E_SCORE, "E2");
+
+  if (res != 0) {
+    printk(KERN_ALERT "lcd_driver: could not access GPIOs during open\n");
+    return -1;
+  }
 	
   // Set all pins for output
   gpio_direction_output(DATA_, 0);
@@ -107,9 +112,9 @@ int device_close(struct inode* inode, struct  file *filp) {
 // LCD screens. The first 16 bytes are printed to the left screen,
 // the next 16 bytes are printed to the top row of the right screen,
 // and the last 16 bytes are printed to the bottom row of the right screen.
-// Any other bytes will by ignored. 
+// Any other bytes will be ignored. providing a bufCount of 0 will clear screen 
 ssize_t device_write(struct file* filp, const char* bufSource, size_t bufCount, loff_t* curOffset) {
-  int firstLine, secondLine, thirdLine, valid = 1;
+  int firstLine, secondLine, thirdLine;
   int i;
 
   // Determine how many lines of the displays will be used
@@ -125,33 +130,38 @@ ssize_t device_write(struct file* filp, const char* bufSource, size_t bufCount, 
     firstLine = CHAR_PER_LINE;
     secondLine = bufCount - CHAR_PER_LINE;
     thirdLine = 0;
+  } else if (bufCount > 0) {
+    firstLine = bufCount -CHAR_PER_LINE;
+    secondLine = 0;
+    thirdLine = 0;
   } else {
-    valid = 0;
+    firstLine = 0;
+    secondLine = 0;
+    thirdLine = 0;
   }
 
-  if (valid) {
-    clearDisplay(GAME_SCREEN);
-    clearDisplay(SCORE_SCREEN);
+  clearDisplay(GAME_SCREEN);
+  clearDisplay(SCORE_SCREEN);
 
-    // Write to the first line of the one line LCD
-    for (i = 0; i < firstLine; i++) {
-      writeChar(bufSource[i], GAME_SCREEN);
-    }
-
-    // Write to the first line of the two line LCD
-    for (i = 0; i < secondLine; i++) {
-       writeChar(bufSource[i + CHAR_PER_LINE], SCORE_SCREEN);
-    }
-
-    // Writes to the second line of the two line LCD
-    if (bufCount > CHAR_PER_LINE) setAddress((unsigned char) 0x40, SCORE_SCREEN);
-    for (i = 0; i < thirdLine; i++) {
-      writeChar(bufSource[i + (2*CHAR_PER_LINE)], SCORE_SCREEN);
-    }
-
-    // returns cursor of one line to far left
-    setAddress((unsigned char) 0x00, GAME_SCREEN);
+  // Write to the first line of the one line LCD
+  for (i = 0; i < firstLine; i++) {
+    writeChar(bufSource[i], GAME_SCREEN);
   }
+
+  // Write to the first line of the two line LCD
+  for (i = 0; i < secondLine; i++) {
+     writeChar(bufSource[i + CHAR_PER_LINE], SCORE_SCREEN);
+  }
+
+  // Writes to the second line of the two line LCD
+  if (bufCount > CHAR_PER_LINE) setAddress((unsigned char) 0x40, SCORE_SCREEN);
+  for (i = 0; i < thirdLine; i++) {
+    writeChar(bufSource[i + (2*CHAR_PER_LINE)], SCORE_SCREEN);
+  }
+
+  // returns cursor of one line to far left
+  setAddress((unsigned char) 0x00, GAME_SCREEN);
+
   return copy_from_user(virtual_device.data, bufSource, bufCount);
 }
 
@@ -161,35 +171,43 @@ void initialize(int screenSel) {
   gpio_set_value(RW_, 0);
   msleep(15);
 
-  command((unsigned char) 0x30, screenSel); // Function Set #1
+  // Function Set #1
+  command((unsigned char) 0x30, screenSel);
   msleep(5);
 
-  lcdSend(screenSel); // Function Set #2
+  // Function Set #2
+  lcdSend(screenSel);
   msleep(1);
 	
-  lcdSend(screenSel); // Function Set #3
+  // Function Set #3
+  lcdSend(screenSel);
   msleep(1);
 
-  if (screenSel == SCORE_SCREEN) { // Function Set #4
-    command((unsigned char) 0x38, screenSel); // 5x7 font, 2 lines
+  // Function Set #4
+  if (screenSel == SCORE_SCREEN) {
+    command((unsigned char) 0x38, screenSel);  // 5x7 font, 2 lines
   } else {
-    command((unsigned char) 0x34, screenSel); // 5x10 font, 1 line
+    command((unsigned char) 0x34, screenSel);  // 5x10 font, 1 line
   }
   msleep(1);
 
-  command((unsigned char) 0x08, screenSel); // Display OFF
+  // Display OFF
+  command((unsigned char) 0x08, screenSel);
   udelay(50);
 
-  command((unsigned char) 0x01, screenSel); // Clear Display
+  // Clear Display
+  command((unsigned char) 0x01, screenSel);
   msleep(16);
-	
-  command((unsigned char) 0x06, screenSel); // Increment mode
+
+  // Increment mode	
+  command((unsigned char) 0x06, screenSel);
   udelay(50);
 
-  if (screenSel == SCORE_SCREEN) {// Entry Mode Set
-    command((unsigned char) 0x0C, screenSel); // Cursor OFF, Blink OFF
+  // Entry mode set
+  if (screenSel == SCORE_SCREEN) {
+    command((unsigned char) 0x0C, screenSel);  // Cursor OFF, Blink OFF
   } else {
-    command((unsigned char) 0x0F, screenSel); // Cursor ON, Blink On
+    command((unsigned char) 0x0F, screenSel);  // Cursor ON, Blink ON
   }
   udelay(50);
 }
@@ -200,39 +218,34 @@ void command(unsigned char data, int screenSel) {
   lcdSend(screenSel);
 }
 
-// Loads and sends data into and from the shift register
+// Loads and sends data from the shift register
 void setBus(unsigned char num) {
   int i = 7;
   int j = 0;
   int binary[8];
-  int temporary = num;
 
   // Building the binary version of num
-  while (j < 8) {
-    binary[j] = temporary % 2;
-    temporary = temporary >> 1;
-    j++;
+  if (j = 0; j < 8; j++) {
+    binary[j] = num % 2;
+    num = num >> 1;
   }
 
-  // Inserting binary E0_value into shift register
-  while (i >= 0) {
-    gpio_set_value(DATA_, binary[i]);  // Set the data line to the next value
-
-    // Toggle the clock
+  // Inserting binary value into shift register
+  if (i = 7; i >= 0; i--) { 
+    gpio_set_value(DATA_, binary[i]);
     gpio_set_value(CLOCK_, 1);
     udelay(10);
     gpio_set_value(CLOCK_, 0);
     i--;
   }
 
-  // Toggle the latch
   gpio_set_value(LATCH_, 1);
   udelay(50);
   gpio_set_value(LATCH_, 0);
 
 }
 
-// Clears the LCD
+// Clears the LCD selected by screenSel
 void clearDisplay(int screenSel){
   gpio_set_value(RS_, 0);
   gpio_set_value(RW_, 0);
@@ -240,7 +253,7 @@ void clearDisplay(int screenSel){
   msleep(16);
 }
 
-// Turns the LCD off
+// Turns the LCD selected by screenSel off
 void displayOff(int screenSel) {
   gpio_set_value(RS_, 0);
   gpio_set_value(RW_, 0);
@@ -248,7 +261,7 @@ void displayOff(int screenSel) {
   udelay(50);
 }
 
-// Sets the R/W pointer to the address specified
+// Sets the R/W pointer to the address specified of the screenSel screen
 void setAddress(unsigned char address, int screenSel) {
   gpio_set_value(RS_, 0);
   gpio_set_value(RW_, 0);
@@ -258,7 +271,7 @@ void setAddress(unsigned char address, int screenSel) {
   udelay(50);
 }
 
-// Sets DB7 to DB0 to the given 8 bits
+// Sets DB7 to DB0 to the given 8 bits of the screen set by screenSel
 void writeChar(unsigned char character, int screenSel) {
   gpio_set_value(RS_, 1);
   gpio_set_value(RW_, 0);
@@ -268,10 +281,11 @@ void writeChar(unsigned char character, int screenSel) {
 }
 
 // Flips the enable switch on the LCD to execute the loaded instruction
+// of the screen set by screenSel
 void lcdSend(int screenSel) {
-  gpio_set_value(EArr[screenSel], 1);	// flip enable high
+  gpio_set_value(EArr[screenSel], 1);
   udelay(50);
-  gpio_set_value(EArr[screenSel], 0); // sends on falling edge
+  gpio_set_value(EArr[screenSel], 0);
 }
 
 MODULE_LICENSE("GPL"); // module license: required to use some functionalities.

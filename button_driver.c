@@ -2,8 +2,8 @@
  * button_driver.c
  *
  * Brad Marquez
- * Aigerim Shintemirova
  * Joseph Rothlin
+ * Aigerim Shintemirova
  *
  * This files is a Linux kernal driver for a 5-way button.
  * Target device is Beaglebone Black microcontroller
@@ -17,17 +17,16 @@
 // necessary information for creating device file. Returns zero on success,
 // non-zero on failure
 static int __init driver_entry(void) {
-  // REGISTERING OUR DEVICE WITH THE SYSTEM
-  // ALLOCATE DYNAMICALLY TO ASSIGN OUR DEVICE
+  // Registering our device with the system
   int ret = alloc_chrdev_region(&dev_num, 0, 1, DEVICE_NAME);
   if (ret < 0) {
     printk(KERN_ALERT "button_driver: Failed to allocate a major number\n");
     return ret;
   }
   printk(KERN_INFO "button_driver: major number is %d\n", MAJOR(dev_num));
-  printk(KERN_INFO "Use mknod /dev/%s c %d 0 for device file\n", DEVICE_NAME, MAJOR(dev_num));
+  printk(KERN_INFO "Use \"mknod /dev/%s c %d 0\" for device file\n", DEVICE_NAME, MAJOR(dev_num));
 
-  // CREATE CDEV STRUCTURE, INITIALIZING CDEV
+  // Created cdev structure
   mcdev = cdev_alloc();
   mcdev->ops = &fops;
   mcdev->owner = THIS_MODULE;
@@ -53,7 +52,7 @@ static void __exit driver_exit(void) {
 
 }
 
-// Sets up GPIOs 
+// Requests and sets up necessary GPIOs, returns negative on error, 0 otherwise 
 int device_open(struct inode *inode, struct file* filp) {
   if (down_interruptible(&virtual_device.sem) != 0) {
     printk(KERN_ALERT "button_driver: could not lock device during open\n");
@@ -61,11 +60,17 @@ int device_open(struct inode *inode, struct file* filp) {
   }
 
   // Request access to all the needed GPIO pins
-  gpio_request(UP, "Up");
-  gpio_request(DOWN, "Down");
-  gpio_request(LEFT, "Left");
-  gpio_request(RIGHT, "Right");
-  gpio_request(PRESS, "Press");
+  int res = 0;
+  res += gpio_request(UP, "Up");
+  res += gpio_request(DOWN, "Down");
+  res += gpio_request(LEFT, "Left");
+  res += gpio_request(RIGHT, "Right");
+  res += gpio_request(PRESS, "Press");
+
+  if (res != 0) {
+    printk(KERN_ALERT "button_driver: could not access GPIOs during open\n");
+    return -1;
+  }
 
   // Sets all pins for output
   gpio_direction_input(UP);
@@ -104,6 +109,6 @@ ssize_t device_read(struct file* filp, char* bufStoreData, size_t bufCount, loff
   return copy_to_user(bufStoreData, virtual_device.status, bufCount);
 }
 
-MODULE_LICENSE("GPL"); // module license: required to use some functionalities.
-module_init(driver_entry); // declares which function runs on init.
-module_exit(driver_exit);  // declares which function runs on exit.
+MODULE_LICENSE("GPL");  // module license: required to use some functionalities.
+module_init(driver_entry);  // declares which function runs on init.
+module_exit(driver_exit);   // declares which function runs on exit.

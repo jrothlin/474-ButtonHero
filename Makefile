@@ -20,5 +20,8 @@ ButtonHero: ButtonHero.o
 ButtonHero.o: ButtonHero.c ButtonHero.h
 	arm-linux-gnueabihf-gcc -Wall -c ButtonHero.c
 
+transfer:
+	scp ButtoHero lcd_driver.ko button_driver.ko root@192.168.7.2:~
+
 clean:
 	$(MAKE) -C $(KDIR) SUBDIRS=$(PWD) clean

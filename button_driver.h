@@ -2,8 +2,8 @@
  * button_driver.h
  *
  * Brad Marquez
- * Aigerim Shintemirova
  * Joseph Rothlin
+ * Aigerim Shintemirova
  *
  * Holds all the functions definitions, included files, and variable
  * definitions for button_driver.h
@@ -22,6 +22,7 @@
 #include <linux/gpio.h>
 #include <linux/delay.h>
 
+// GPIO inputs from button
 #define UP 65
 #define DOWN 48
 #define LEFT 20
@@ -33,7 +34,7 @@
 #define NUM_BUTTONS 5
 
 // Contains data about the device.
-struct fake_device {
+struct device {
 	int status[NUM_BUTTONS];
 	struct semaphore sem;
 } virtual_device;
@@ -43,13 +44,24 @@ static struct cdev* mcdev;
 // Holds major and minor number granted by the kernel
 static dev_t dev_num;
 
-// File operations
+// Takes necessary steps to insert module into the OS, including printing
+// necessary information for creating device file. Returns zero on success,
+// non-zero on failure
 static int __init driver_entry(void);
+
+// Run when module is uninstalled, unregisters the device.
 static void __exit driver_exit(void);
+
+// Requests and sets up necessary GPIOs, returns negative on error, 0 otherwise 
 static int  device_open(struct inode*, struct file*);
+
+// Closes device, frees the GPIO pins, and returns access to semaphore.
 static int device_close(struct inode*, struct file *);
+
+// Called when user wants to get state of the button input
+// Warning: calling read from this module without specifying the correct
+// number of bytes will result in no data being transferred
 static ssize_t device_read(struct file*, char*, size_t, loff_t*);
-static ssize_t device_write(struct file*, const char*, size_t, loff_t*);
 
 // Operations usable by this file.
 static struct file_operations fops = {

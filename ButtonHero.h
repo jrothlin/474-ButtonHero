@@ -2,8 +2,8 @@
  * ButtonHero.h
  *
  * Brad Marquez
- * Aigerim Shintemirova
  * Joseph Rothlin
+ * Aigerim Shintemirova
  *
  * This file contains include files and function/variable delerations
  * used in ButtonHero.c
@@ -55,7 +55,7 @@ const char symbols[NUM_BUTTONS + 1] = {'^', 'v', '<', '>', 'o', ' '};
 
 // Static variables for file communication
 static int fd_lcd = 0, fd_but = 0;
-static FILE *pwm = NULL, *dirduty = NULL, *dirT = NULL;
+static FILE *pwm = NULL, *dirDuty = NULL, *dirT = NULL;
 
 // State of the game, there is only one game during the life of the program
 typedef struct game_state_struct {
@@ -85,7 +85,7 @@ int wantToQuit();
 
 // Interupt handler, makes all necessary closing steps to terminate program
 // when the SIGINT signal is received
-void shutDown(int signo);
+void shutDown();
 
 // Takes in two integers which represent the score the player received in the
 // current game and the previous high score. This function will set the screen
@@ -108,9 +108,6 @@ void loseMusic(void);
 
 // Plays the sound sequence for a win
 void winMusic(void);
-
-// Closes the files associated with the buzzer
-void closeBuzzer(void);
 
 // Prints the next screen frame to the LCD screens. The symbolScreen will be
 // modified by shift all of it's character to the left by one space (except for

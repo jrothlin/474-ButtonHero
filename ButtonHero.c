@@ -4,7 +4,6 @@
  * Brad Marquez
  * Joseph Rothlin
  * Aigerim Shintemirova
- * 23/5/2016
  *
  * This program plays a game synonymous to "Guitar Hero: entitled "Button Hero"
  * Symbols scroll across a screen as the user attempt to press the
@@ -17,7 +16,7 @@
 #include "ButtonHero.h"
 
 int main() {
-  // Initial setup steps
+  // Initial setup
   signal(SIGINT, shutDown);
   openPath();
   instructions();
@@ -33,7 +32,7 @@ int main() {
   fflush(pwm);
 
   // Sets the pointers to the appropriate duty and period files
-  dirduty = fopen("/sys/devices/ocp.3/pwm_test_P9_14.15/duty", "w");
+  dirDuty = fopen("/sys/devices/ocp.3/pwm_test_P9_14.15/duty", "w");
   dirT = fopen("/sys/devices/ocp.3/pwm_test_P9_14.15/period", "w");
 
   // Main game loop
@@ -52,7 +51,6 @@ int main() {
     }
     symbolScreen[SCREEN_SIZE] = '\0';
 
-    // Zero out structs for the next game session
     session_state currSession;
     memset(&currSession, 0, sizeof(session_state));
     currSession.misses = -1;
@@ -72,7 +70,8 @@ int main() {
         currSession.correctInput = 0;
 
         if (nextScreenFrame(&currSession, symbolScreen) == -1) {
-          shutDown(SIGINT);
+          shutDown();
+          return EXIT_FAILURE;
         }
       }
       // Delay inbetween input update
@@ -115,10 +114,8 @@ int main() {
     currGame.quit = wantToQuit();
     usleep(500000);
   }
-  closeBuzzer();
-  close(fd_lcd);
-  close(fd_but);
-  return 0;
+  shutDown();
+  return EXIT_SUCCESS;
 }
 
 // Plays short tune to signal a player loss
@@ -147,20 +144,12 @@ void winMusic() {
   buzzer(0);
 }
 
-// Closes files associated with the buzzer
-void closeBuzzer() {
-  buzzer(0);
-  if (pwm != NULL) fclose(pwm);
-  if (dirduty != NULL) fclose(dirduty);
-  if (dirT != NULL) fclose(dirT);
-}
-
 // Plays given sound on the buzzer
 void buzzer(int note) {
   fprintf(dirT, "%d", note);
   fflush(dirT);
-  fprintf(dirduty, "%d", note / 2);
-  fflush(dirduty);
+  fprintf(dirDuty, "%d", note / 2);
+  fflush(dirDuty);
 }
 
 // Opens files used to interface with kernal drivers for LCDs and 5-way button
@@ -219,13 +208,13 @@ void printGameOver(int currentScore, int *highScore) {
 }
 
 // Closes all files for exit when termination signal it received
-void shutDown(int signo) {
-  if (signo == SIGINT) {
-    closeBuzzer();
-    if (fd_lcd != 0) close(fd_lcd);
-    if (fd_but != 0) close(fd_but);
-    exit(0);
-  }
+void shutDown() {
+  buzzer(0);
+  if (pwm != NULL) fclose(pwm);
+  if (dirDuty != NULL) fclose(dirDuty);
+  if (dirT != NULL) fclose(dirT);
+  if (fd_lcd != 0) close(fd_lcd);
+  if (fd_but != 0) close(fd_but);
 }
 
 // Prints the instructions for the user to view on the terminal on game start up
