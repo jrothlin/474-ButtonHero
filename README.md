@@ -60,4 +60,4 @@ increase the aesthetics of the game.
 # Next Steps
 - Create unique symbols rather then generic keyboard arrows
 - Create two player option
-- Recreate ButtonHero.c using C++ mainly for more practice with C++
+- Recreate ButtonHero.c using C++
