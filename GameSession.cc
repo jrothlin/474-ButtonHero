@@ -10,3 +10,10 @@
  * when the symbols begin scrolling across the screen and ending when the
  * player makes too many mistaces.
  */
+
+
+GameSession::GameSession(Player player, Screen screen) : player_(player), screen_(screen) {}
+
+int GameSession::play() {
+  
+}

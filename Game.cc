@@ -9,11 +9,12 @@
  * This program encapsulates the functionality of an instance of the game.
  */
 
-#define SELECT 0;
+#define NONE 0;
 #define UP 1;
 #define DOWN 2;
 #define LEFT 3;
 #define RIGHT 4;
+#define SELECT 5;
 
 #define SELECT_YES true;
 #define SELECT_NO false;
@@ -31,20 +32,22 @@ Game::Game() {
 
 void Game::initialWaitingScreen() const {
   screen_.displayWaitingScreen();
-  player_.waitForInput();
+  player_.getInput();
   std::this_thread::sleep_for(std::chrono::milliseconds(500));
 }
 
 void Game::beginPlaying() {
   GameSession gameSession = new GameSession(screen_, player_);
   int score = gameSession.play();
+  bool gameResult;
   if (score >= high_score_) {
     high_score_ = score;
-    screen_.displayGameOver(WIN);
+    gameResult = WIN;
   } else {
-    screen_.displayGameOver(LOSE);
+    gameResult = LOSE;
   }
-  player_.waitForInput();
+  screen_.displayGameOver(gameResult, score, high_score_);
+  player_.getInput();
   std::this_thread::sleep_for(std::chrono::milliseconds(500));
 }
 
@@ -53,7 +56,7 @@ void Game::playAgainPrompt() {
   bool selectionStatus = SELECT_NO;
   screen_.displayReplayPrompt(SELECT_NO);
   while (buttonPressed != SELECT) {
-    buttonPressed = player_.waitForInput();
+    buttonPressed = player_.getInput();
     if (buttonPressed == 3 && selectionStatus == SELECT_YES) {
       selectionStatus = SELECT_NO;
     } else if (buttonPressed == 4 && selectionStatus == SELECT_NO) {

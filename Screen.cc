@@ -11,21 +11,30 @@
  */
 
 Screen::Screen() {
-
+  game_screen_ = new GameScreen();
+  score_board_ = new ScoreBoard();
 }
 
 void Screen::displayWaitingScreen() {
-
+  gameScreen_.blank();
+  scoreBoard_.promptForInput();
 }
 
-void Screen::displayGameOver(bool playerWon) {
-
+void Screen::displayGameOver(bool playerWon, int gameScore, int highScore) {
+  if (playerWon) {
+    game_screen_.displayWin();
+  } else {
+    game_screen_.displayLose();
+  }
+  score_board_.displayScores(gameScore, highScore);
 }
 
-void Screen::displayReplayPrompt() {
-
+void Screen::displayReplayPrompt(bool selection) {
+  game_screen_.blank();
+  score_board_.displayReplayAndChoices(selection);
 }
 
 void Screen::shutDown() {
-
+  gameScreen_.shutDown();
+  score_board_.shutDown();
 }
