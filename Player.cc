@@ -25,9 +25,17 @@ Player::Player() {
 void Player::getInput() {
   int input = 0;
   while (input == 0) {
-    button_.getStatus();
+    input = button_.getStatus();
   }
   return input;
+}
+
+void Player::enableBuzzer() {
+
+}
+
+void Player::disableBuzzer() {
+
 }
 
 void Player::shutDown() {

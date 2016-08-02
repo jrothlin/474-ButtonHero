@@ -23,7 +23,6 @@
 #define LOSE false;
 
 Game::Game() {
-  connection_ = new Connection();
   screen_ = new Screen();
   player_ = new Player();
   quit_ = false;
@@ -53,7 +52,7 @@ void Game::beginPlaying() {
 
 void Game::playAgainPrompt() {
   int buttonPressed = -1;
-  bool selectionStatus = SELECT_NO;
+  bool selectionStatus;
   screen_.displayReplayPrompt(SELECT_NO);
   while (buttonPressed != SELECT) {
     buttonPressed = player_.getInput();
@@ -62,8 +61,9 @@ void Game::playAgainPrompt() {
     } else if (buttonPressed == 4 && selectionStatus == SELECT_NO) {
       selectionStatus = SELECT_YES;
     }
+    screen_.displayReplayPrompt(selectionStatus);
   }
-  if (SELECT_NO) quit_ = true;
+  if (selectionStatus == SELECT_NO) quit_ = true;
 }
 
 void Game::shutDown() {

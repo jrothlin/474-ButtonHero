@@ -34,6 +34,10 @@ void Screen::displayReplayPrompt(bool selection) {
   score_board_.displayReplayAndChoices(selection);
 }
 
+void Screen::initialSessionScreen() {
+
+}
+
 void Screen::shutDown() {
   gameScreen_.shutDown();
   score_board_.shutDown();
